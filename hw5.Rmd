@@ -1,0 +1,112 @@
+---
+title: "ds202_hw5"
+author: "Grant Ruedy"
+date: "4/6/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+1.
+```{r}
+if (file.exists("alcohol.rds")) {
+  data <- readRDS("alcohol.rds")
+} else {
+  url <- "https://xdaiisu.github.io/ds202materials/data/ames.csv"
+  data <- readr::read_csv(url)
+  saveRDS(data, file="alcohol.rds")
+} 
+```
+
+
+2.
+```{r}
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+
+
+data1 <-data %>% separate(`Store Location`, c("address1", "address2", "coords"), sep = "\n") %>% 
+  mutate(coords = gsub("[()]", "", coords)) %>% 
+  separate(coords, c("latitude", "longitude"), sep = ",") 
+
+data1[10:11] #extracting latitude and longitude
+
+str(data1)
+
+data1$Date <- mdy(data1$Date)
+data1$`Vendor Number` <- as.numeric(data1$`Vendor Number`)
+data1$latitude <- as.numeric(data1$latitude)
+data1$longitude <- as.numeric(data1$longitude)
+data1$County <- factor(data1$County)
+data1$`Category Name` <- factor(data1$`Category Name`)
+
+
+data4 <- data %>% separate(Date, c("month", "day", "year"), sep = "/") 
+
+data4[2:4] #extracting month , day, year
+  
+```
+
+
+3.
+```{r}
+#scatterplot of lat and long of store locations.
+ggplot(data1, aes(x=longitude, y=latitude)) + geom_point(na.rm = T) + 
+  theme(axis.text.x = element_blank(),axis.text.y = element_blank())
+
+```
+
+```{r}
+#visual breakdown of the liquor category 
+library(tidyverse)
+myplots3 <-
+  data1 %>% 
+  split(ceiling(group_indices(.,`Category Name`)/12)) %>% 
+  map(~ggplot(.,aes(x=`Category Name`,y=`Volume Sold (Liters)`))+geom_boxplot()+facet_wrap(~`Category Name`) +
+        theme(axis.text.x = element_blank()))
+
+myplots3 
+
+```
+
+
+4.
+```{r}
+#subsetting to liquor sales in Ames in 2018.
+data2 <- data1[year(data1$Date)=='2018',]
+
+
+#Summarize number of sales, volume of liquor sold and amount of money spent
+data2 %>% group_by(yday(Date)) %>% summarize(number.of.sales=sum(`Bottles Sold`),
+                                            volume.of.liquor=sum(`Volume Sold (Liters)`),
+                                            money.spent=sum(`Sale (Dollars)`))
+
+
+#plot of volume sold by day
+ggplot(data2, aes(x=day(Date), y=`Volume Sold (Liters)`)) + geom_point() + facet_wrap(~month(Date, label=T))
+
+
+```
+
+Based off of the plot showing volume of alcohol sold by day, there seems to be a pattern of most alcohol is sold in the beginning months of the year. Especially in May, this trend can be seen as the number of points above 1000 liters sold is the most of any month. Another interesting pattern is the extreme observation in February. This could have been because of the SuperBowl, one of the largest sporting events in the world. One final pattern worth noting is how for almost every month, the sales seem to spike every week or so. This makes sense as more people drink and buy alcohol on the weekend. 
+
+```{r}
+#Dates for ISU football home games in 2018
+game1 <- mdy('9-15-2018')
+game2 <- mdy('9-22-2018')
+game3 <- mdy('10-13-2018')
+game4 <- mdy('10-27-2018')
+game5 <- mdy('11-10-2018')
+game6 <- mdy('11-24-2018')
+game7 <- mdy('12-1-2018')
+
+data3 <-data2 %>%
+  mutate(day.of.year =yday(Date))
+ggplot(data3, aes(x=day.of.year, y=`Volume Sold (Liters)`)) +geom_line()
+
+```
+
+After looking at the dates for the ISU home football games, there does not appear to be any strong pattern. Unfortunately the data does not have some of the sales during October, which leaves us guessing for a few games. However, most games are on the weekend, which would also help explain why alcohol sales spike on the weekend.
